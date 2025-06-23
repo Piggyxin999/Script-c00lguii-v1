@@ -1,0 +1,188 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+------------------------
+-- Interface estilizada
+local gui = Instance.new("ScreenGui")
+gui.Name = "DevScriptUI"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 250, 0, 35)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BorderColor3 = Color3.fromRGB(255, 0, 0)
+frame.BorderSizePixel = 3
+frame.Parent = gui
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, 0, 1, 0)
+label.BackgroundTransparency = 1
+label.TextColor3 = Color3.fromRGB(255, 0, 0)
+label.Text = "🔧 ESP + VOAR + MAPA + FOTO"
+label.Font = Enum.Font.SourceSansBold
+label.TextSize = 18
+label.Parent = frame
+
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+------------------------
+-- ESP com Team Check
+local function createESP(player)
+	if player == LocalPlayer then return end
+	if player.Team == LocalPlayer.Team then return end
+
+	local function attach()
+		if player.Character and player.Character:FindFirstChild("Head") and not player.Character:FindFirstChild("ESP") then
+			local billboard = Instance.new("BillboardGui")
+			billboard.Name = "ESP"
+			billboard.Size = UDim2.new(0, 100, 0, 20)
+			billboard.StudsOffset = Vector3.new(0, 3, 0)
+			billboard.AlwaysOnTop = true
+			billboard.Adornee = player.Character.Head
+
+			local nameTag = Instance.new("TextLabel")
+			nameTag.Size = UDim2.new(1, 0, 1, 0)
+			nameTag.BackgroundTransparency = 1
+			nameTag.Text = player.Name
+			nameTag.TextColor3 = Color3.fromRGB(255, 0, 0)
+			nameTag.TextScaled = true
+			nameTag.Font = Enum.Font.SourceSansBold
+			nameTag.Parent = billboard
+
+			billboard.Parent = player.Character
+		end
+	end
+
+	player.CharacterAdded:Connect(function()
+		task.wait(1)
+		attach()
+	end)
+
+	attach()
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+	createESP(player)
+end
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function()
+		task.wait(1)
+		createESP(player)
+	end)
+end)
+
+------------------------
+-- Voar com tecla F
+local flying = false
+local speed = 60
+local bodyGyro, bodyVelocity
+
+UIS.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+	if input.KeyCode == Enum.KeyCode.F then
+		flying = not flying
+		local char = LocalPlayer.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+
+		if flying and root then
+			bodyGyro = Instance.new("BodyGyro")
+			bodyGyro.D = 9e4
+			bodyGyro.P = 9e4
+			bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+			bodyGyro.CFrame = root.CFrame
+			bodyGyro.Parent = root
+
+			bodyVelocity = Instance.new("BodyVelocity")
+			bodyVelocity.Velocity = Vector3.zero
+			bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+			bodyVelocity.Parent = root
+
+			RunService:BindToRenderStep("FlyDev", Enum.RenderPriority.Camera.Value, function()
+				local cam = Workspace.CurrentCamera
+				local moveVec = Vector3.zero
+				if UIS:IsKeyDown(Enum.KeyCode.W) then moveVec += cam.CFrame.LookVector end
+				if UIS:IsKeyDown(Enum.KeyCode.S) then moveVec -= cam.CFrame.LookVector end
+				if UIS:IsKeyDown(Enum.KeyCode.A) then moveVec -= cam.CFrame.RightVector end
+				if UIS:IsKeyDown(Enum.KeyCode.D) then moveVec += cam.CFrame.RightVector end
+				if UIS:IsKeyDown(Enum.KeyCode.Space) then moveVec += cam.CFrame.UpVector end
+				if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then moveVec -= cam.CFrame.UpVector end
+				bodyVelocity.Velocity = moveVec.Unit * speed
+				bodyGyro.CFrame = cam.CFrame
+			end)
+		else
+			if bodyGyro then bodyGyro:Destroy() end
+			if bodyVelocity then bodyVelocity:Destroy() end
+			RunService:UnbindFromRenderStep("FlyDev")
+		end
+	end
+end)
+
+------------------------
+-- Mapa com texturas (M)
+local textures = {
+	"rbxassetid://142279205", -- pedra
+	"rbxassetid://2712548727", -- madeira
+	"rbxassetid://771221224", -- cimento
+	"rbxassetid://367701105", -- areia
+	"rbxassetid://6305790176", -- rocha espacial
+}
+
+-- Foto personalizada (N)
+local myPhotoId = "rbxassetid://75537401281474"
+
+-- Desancorar tudo (cliente) com B
+UIS.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+
+	local pos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
+
+	if input.KeyCode == Enum.KeyCode.M then
+		for i = 1, 5 do
+			local part = Instance.new("Part")
+			part.Anchored = true
+			part.Size = Vector3.new(10, 1, 10)
+			part.Position = pos + Vector3.new(0, -3 + i, 0)
+			part.Name = "DevTextura_"..i
+
+			local texture = Instance.new("Texture")
+			texture.Texture = textures[math.random(1, #textures)]
+			texture.StudsPerTileU = 4
+			texture.StudsPerTileV = 4
+			texture.Face = Enum.NormalId.Top
+			texture.Parent = part
+
+			part.Parent = workspace
+		end
+	end
+
+	if input.KeyCode == Enum.KeyCode.N then
+		for i = 1, 10 do
+			local part = Instance.new("Part")
+			part.Anchored = true
+			part.Size = Vector3.new(5, 5, 1)
+			part.Position = pos + Vector3.new(math.random(-50, 50), math.random(5, 50), math.random(-50, 50))
+
+			local decal = Instance.new("Decal")
+			decal.Texture = myPhotoId
+			decal.Face = Enum.NormalId.Front
+			decal.Parent = part
+
+			part.BrickColor = BrickColor.Random()
+			part.Name = "MyPhotoBlock"
+			part.Parent = workspace
+		end
+	end
+
+	if input.KeyCode == Enum.KeyCode.B then
+		for _, v in pairs(workspace:GetDescendants()) do
+			if v:IsA("BasePart") and v.Anchored then
+				v.Anchored = false
+			end
+		end
+	end
+end)
